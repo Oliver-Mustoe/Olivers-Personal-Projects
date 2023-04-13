@@ -1,0 +1,236 @@
+﻿Lab00 - Routing and Windows
+
+
+💡This lab will rely on some of the skills you have already learned in Systems Administration 1 and Network Protocols.  You will build a simple network that will serve as the foundation for future labs.  It is important that you make this a reliable build that you have total familiarity with because subsequent activities will use this architecture as a point of departure.
+	
+
+Our goal is to build a realistic server environment consisting of a routed network (LAN and WAN) as well as introduce Server 2019 Desktop and Core and the systems required to manage them.
+
+
+  
+
+The figure below shows your lab architecture after Parts 1 and Parts 2 of the lab are complete.  In part 1, you will establish routing and concentrate on the Windows portions of the Architecture.
+
+
+  
+
+
+
+Requirements
+FW01
+Firewall 1 is a pfSense virtual router that you will need to configure in order to route traffic between your private network and the SYS265-WAN (Wide area network)  You will have two network interfaces.  One will be connected to SYS265-WAN and the other to SYS265-LAN-your.name where your other systems will be hosted.
+
+
+You will have your own IP address for the shared SYS-265-Network Assignments on the home page.
+  
+
+        
+Virtual Networking
+The following screenshot shows the appropriate virtual network configuration for fw01.
+  
+
+
+OS Configuration
+Configure pfSense similarly as you did during SYS255.  If you run into trouble, here's the link to the SYS255 Lab that covers pfSense.  A couple pointers:
+* It will take a minute or so for a timeout to occur when configuring interfaces.  It is waiting for a dhcp server that just does not exist.
+* We are not using VLANs
+* VMX0/em0 and VMX1/em1 are WAN and LAN respectively
+* Your WAN interface will be set to your assigned IP, while the LAN IP will be set to 10.0.5.2/24
+* Your WAN upstream gateway address is 10.0.17.2
+* We are not using IPv6 on WAN nor LAN
+* We are not using the firewall for DHCP on the LAN
+* Do not revert to http
+When done, your console should look similar to this:
+
+
+💣Do not use Hermione's WAN IP (.74), use your own!
+	
+
+
+
+  
+
+We will complete our configuration using the web interface from our Windows 10 system (wks01)
+
+
+You should also be able to enter a shell (8) and ping google.com
+  
+
+WKS-01
+Virtual Networking:
+  
+
+
+
+OS Configuration:
+
+
+
+
+💡The Windows 10 desktop system (wks01) will display the champuser username, which is our deployer account. You will need to set up a new Local Named Administrator account, which you will use for the rest of the term.
+
+
+Here are specific instructions on how to add a new Local Named Administrator account.
+	
+
+Go through the normal configuration steps:
+* During 1st boot, the setup asks to “Connect Now to Save Time Later” > Select No
+* Username: yourname (you may need to add a new local administrative user)
+* Adjust your privacy settings by turning everything off when prompted
+* Give wks01 a static IP address of 10.0.5.100, netmask of 255.255.255.0 and a gateway and DNS of 10.0.5.2 (your fw01 LAN interface).  
+* Give your system a hostname of wks01-yourname.
+________________
+
+
+💡Pro Tip
+  
+
+	
+
+
+
+Navigate to https://10.0.5.2 and login using admin/pfsense
+
+
+
+
+Follow the FW wizard and make the following changes:
+   * hostname:fw01-yourfirstname
+   * Domain: yourfirstname.local
+   * Primary DNS Server 8.8.8.8
+   * Uncheck block RFC1918 Private Networks (Step 4)
+   * If you change the password, take steps to remember it
+
+
+Your Windows 10 system, WKS01, should be able to ping your LAN's default gateway 10.0.5.2 and resolve and ping google.com
+  
+
+AD01 - Server Core
+Make sure AD01 is on your SYS265-LAN network
+  
+
+Change and record the new administrator password for the Server Core machine.
+Using sconfig, configure the following:
+Network Settings
+        IP:  10.0.5.5
+        Netmask: 255.255.255.0
+        Gateway: 10.0.5.2
+        Preferred DNS: 10.0.5.2
+Computer Name:  ad01-yourname
+Manual Windows Update
+
+
+💣This is important, renaming your server after AD installation is a recipe for disaster!
+	
+
+When rebooted, the sconfig screen should look similar to:
+  
+
+Installing AD on Server Core.
+In previous courses, you have relied on the GUI to install AD.  This time, we will use powershell.
+
+
+On AD01, invoke Powershell and use the CLI to install Active Directory and create a new Forest with a Domain Name of yourfirstname.local (not hermione.local…)
+  
+
+
+
+Install the Forest with the following command:
+  
+
+
+
+Read through the install prompts, and it will take some moments & of course an auto reboot.
+
+
+When complete, you should be able to show that you are the Domain Admin account of yourname.local, and NOT the Local Admin Pre-AD account (this Local Admin account is suppressed on Domain Controllers, but not on Member Servers or Clients):
+  
+
+
+
+Configure MGMT01
+MGMT01 is a Server 2019 with GUI.  It's job will be to remotely manage any server core systems.  It should be configured with Network Adapter 1 on SYS265-LAN-your.name just like the other LAN based VMs.
+
+
+💡If you are asked for an activation key, skip that option.
+	  
+   * Using sconfig from command prompt, make updates manual
+   * MGMT01 should have the IP address of 10.0.5.10
+   * gateway of 10.0.5.2
+   * DNS should be set to the IP of ad01(10.0.5.5) 
+   * Hostname should be mgmt01-firstname
+   * Join it to yourname.local
+
+
+
+
+After rebooting mgmt01, make sure you login to the domain and not the local host.
+
+
+
+
+
+
+On MGMT01, figure out how to Install the following Features on mgmt01:
+  
+
+Using Server Manager on mgmt01, add ad01 to the list of managed servers.
+
+Domain Users
+Using Active Directory Users and Computers, create the following named users
+first.lastname (normal user)
+first.lastname-adm (named domain admin)
+
+
+ Add your -adm account to the Domain Admins group
+DNS
+Create a Reverse Lookup Zone for the 10.0.5 network
+
+
+Create an A record and PTR record for fw01-yourname
+
+
+Manually add the PTR records for ad01 and mgmt01.  Your PTR records should look similar to this:
+  
+
+
+
+On MGMT01, logout and then re-login as your -adm@yourdomain account.
+
+
+Joining WKS01 to the domain
+Go ahead and join wks01 to the domain as your Named Domain user. What needs to be changed to facilitate these changes?
+
+
+
+
+Deliverable 1:  Invoke powershell on mgmt01 and query the active directory for your three Windows computers:
+  
+
+Deliverable 2:  Enumerate your two named Domain Users (adjust filter for your name)
+  
+
+
+
+Deliverable 3:  Print your DNS Server address and DNS A Records.
+  
+
+Deliverable 4:  Check the first 3 hops of your route.  Your network route should go through fw01's LAN interface(10.0.5.2) to the WAN default gateway 10.0.17.2 and then out through the CYBER.LOCAL default gateway on the 192.168.4.0/24 Network.  You can use the powershell or the traditional tracert method.  Provide a screenshot.
+  
+
+
+
+Deliverable 5:  Deliverable 3 asked for A records.  Figure out how to enumerate all the PTR records.  Provide the command and output ptr records.  Here's what the output should look like:
+
+  
+
+
+
+Deliverable 6:  Tech Journal - This is similar to last term. This week’s journal should include a course journal page for SYS265 that has an initial entry, and include your notes from your environment configuration (in far more detail than the example). Make sure you include a list of at least 3 terms or topics from the lecture or lab that you want to learn more about, and your research results. Be sure to add your instructor’s GitHub account as a collaborator if your wiki is not public. 
+
+
+
+
+
+
+Deliverable 7.  Your deliverable meets the submission guidelines.
